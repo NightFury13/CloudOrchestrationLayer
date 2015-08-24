@@ -7,6 +7,7 @@ from flask import request, jsonify
 from flask.ext.api import FlaskAPI
 import random
 import string
+import sys
 
 from ConfigFiles import *
 
@@ -38,4 +39,8 @@ def VMTypes():
     return vm_types
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', debug=True)
+    if len(sys.argv) != 3:
+        print "[ERROR] : Incorrect input parameters.\nUsage : $> python server.py pm_file image_file"
+    else:
+        print "Args List :", sys.argv
+        app.run(host='0.0.0.0', debug=True)
