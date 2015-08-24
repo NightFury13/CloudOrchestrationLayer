@@ -8,15 +8,34 @@ from flask.ext.api import FlaskAPI
 import random
 import string
 
+from ConfigFiles import *
+
 app = FlaskAPI(__name__)
 
 @app.route("/", methods=['GET'])
 def homepage():
-    return "Cloud Orchestration Layer"
+    homeString = {}
+    homeString["Cloud Orchestration Layer"] = [
+        {
+            "Author" : "Mohit Jain", 
+            "ver" : "1.0", 
+            "Options" : 
+                {
+                    "List VM Types" : "http://localhost:5000/vm/types",
+                    "List Physical Machines" : "http://localhost:5000/pm/list"
+                }
+        }
+    ]
+    return homeString
+
 
 @app.route("/id", methods=['GET'])
 def create_id(size=8, chars=string.ascii_uppercase+string.digits):
     return ''.join(random.choice(chars) for x in range(size))
+
+@app.route("/vm/types", methods=['GET'])
+def VMTypes():
+    return vm_types
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
