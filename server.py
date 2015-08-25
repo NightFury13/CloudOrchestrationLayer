@@ -11,6 +11,7 @@ RollNo : 201202164
 from flask import request, jsonify
 from flask.ext.api import FlaskAPI
 from flask.ext.pymongo import PyMongo
+import subprocess
 import random
 import string
 import sys
@@ -21,6 +22,18 @@ from ConfigFiles import *
 # Flask Application Initializer.
 ######################################################################################################
 app = FlaskAPI(__name__)
+app.config.from_object(mongo_config)
+try:
+    mongo = PyMongo(app)
+except:
+    print "Running MongoDB requires superuser access."
+    p = subprocess.Popen(['sudo', 'mkdir', '-p', '/data/db'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, errors = p.communicate()
+    print "Creating /data/db directory to execute MongoDB connection...\n%s" % output
+    p = subprocess.Popen(['sudo', 'mongod'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, errors = p.communicate()
+    print "MongoDB server running successfully..."
+    mongo = PyMongo(app)
 
 ######################################################################################################
 # Homepage.
@@ -40,19 +53,19 @@ def homepage():
                 }
         }
     ]
-    return homeString
+    return jsonify(homeString)
 
 ######################################################################################################
 # Virtual Machine CRUD functions.
 ######################################################################################################
 
-@app.route("/id", methods=['GET'])
-def create_id(size=8, chars=string.ascii_uppercase+string.digits):
-    return ''.join(random.choice(chars) for x in range(size))
+@app.route("/vm/create", methods=['GET','POST'])
+def VMCreate():
+    return
 
 @app.route("/vm/types", methods=['GET'])
 def VMTypes():
-    return vm_types
+    return jsonify(vm_types)
 
 ######################################################################################################
 # Initializer statements.
