@@ -1,17 +1,30 @@
 """
+Cloud Orchestration Layer
+
 Author : Mohit Jain
 RollNo : 201202164
 """
 
+######################################################################################################
+# Requirements import.
+######################################################################################################
 from flask import request, jsonify
 from flask.ext.api import FlaskAPI
+from flask.ext.pymongo import PyMongo
 import random
 import string
 import sys
 
 from ConfigFiles import *
 
+######################################################################################################
+# Flask Application Initializer.
+######################################################################################################
 app = FlaskAPI(__name__)
+
+######################################################################################################
+# Homepage.
+######################################################################################################
 
 @app.route("/", methods=['GET'])
 def homepage():
@@ -29,6 +42,9 @@ def homepage():
     ]
     return homeString
 
+######################################################################################################
+# Virtual Machine CRUD functions.
+######################################################################################################
 
 @app.route("/id", methods=['GET'])
 def create_id(size=8, chars=string.ascii_uppercase+string.digits):
@@ -37,6 +53,10 @@ def create_id(size=8, chars=string.ascii_uppercase+string.digits):
 @app.route("/vm/types", methods=['GET'])
 def VMTypes():
     return vm_types
+
+######################################################################################################
+# Initializer statements.
+######################################################################################################
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
