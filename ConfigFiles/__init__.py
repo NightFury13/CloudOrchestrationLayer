@@ -1,1 +1,3 @@
 from VMType import vm_types
+from CreateVM_x86_XML import x86_XML_doc
+from CreateVM_x64_XML import x64_XML_doc

@@ -17,6 +17,7 @@ import string
 import sys
 import werkzeug.exceptions
 import os
+import libvirt
 
 from ConfigFiles import *
 
@@ -26,6 +27,7 @@ from ConfigFiles import *
 
 VM_IMAGES = {} # Stores all the VM images given as input.
 PM_ADDRS = {}  # Stores the IPs of all available Physical Machines
+VM_RUNNING = {} # Stores all the running VMs.
 
 ######################################################################################################
 # Flask Application Initializer.
@@ -82,12 +84,41 @@ def VMCreate():
         if vm_id == vm_imageid:
             vm_imagepath = VM_IMAGES[vm_id]['path']
 
+    vm_filename = str(vm_imagepath.split('/')[-1])
+
+    # Allocate the Physical Machine to load this VM.
     alloted_pm_id = Scheduler(vm_cpu, vm_ram, vm_disk)
 
-    TransferImage(alloted_pm_id, vm_imagepath)
+    # Send image to client machine.
+    TransferImage(alloted_pm_id, vm_imagepath, vm_filename)
 
-    out = [vm_name, vm_typeid, vm_imageid, vm_cpu, vm_ram, vm_disk, vm_imagepath, PM_ADDRS[alloted_pm_id]]
-    return out
+    global VM_RUNNING
+    vm_id = CreateUID()
+    VM_RUNNING[vm_id] = {}
+    VM_RUNNING[vm_id]['name'] = vm_name
+    VM_RUNNING[vm_id]['pm_id'] = alloted_pm_id
+    VM_RUNNING[vm_id]['img_id'] = vm_imageid
+
+    # --- Check client architecture --- #
+    stdout, stderr = subprocess.Popen(['ssh',PM_ADDRS[alloted_pm_id]['ip'], 'arch'],stdout=subprocess.PIPE).communicate()
+    stdout = stdout.strip()
+    if(stdout == "x86_64"):
+        string = ''.join(x86_XML_doc.split('\n'))
+    else:
+        string = ''.join(x64_XML_doc.split('\n'))
+
+    # --- Load VM on Client --- #
+    connection = libvirt.open("qemu+ssh://"+PM_ADDRS[alloted_pm_id]['ip']+"/system")
+    XML_doc = string % (vm_id, vm_name, vm_id, str(int(vm_ram)*1024), str(int(vm_ram)*1024), str(vm_cpu), '~/'+vm_filename)
+
+    try:
+        connection.createXML(XML_doc, 0)
+    except:
+        connection.close
+        return {'vmid': 0}
+
+    connection.close
+    return {'vmid': vm_id}
 
 @app.route("/vm/types", methods=['GET'])
 def VMTypes():
@@ -146,7 +177,7 @@ def Scheduler(cpu, ram, disk):
 
     return alloted_pm_id
 
-def TransferImage(pm_id, image_path):
+def TransferImage(pm_id, image_path, vm_filename):
     """
     Copies the Image file to the client machine if host and client are not same.
     """
@@ -154,7 +185,7 @@ def TransferImage(pm_id, image_path):
     if PM_ADDRS[pm_id]['ip'] == image_path.split(':')[0]:
         return
 
-    os.system('scp '+image_path+' '+PM_ADDRS[pm_id]['ip']+'~/')
+    os.system('scp '+image_path+' '+PM_ADDRS[pm_id]['ip']+'~/'+vm_filename)
     return
 
 def GetVMTypeDetails(typeid=None):
