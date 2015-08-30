@@ -84,7 +84,9 @@ def VMCreate():
 
     alloted_pm_id = Scheduler(vm_cpu, vm_ram, vm_disk)
 
-    out = [vm_name, vm_typeid, vm_imageid, vm_cpu, vm_ram, vm_disk, vm_imagepath, alloted_pm_id]
+    TransferImage(alloted_pm_id, vm_imagepath)
+
+    out = [vm_name, vm_typeid, vm_imageid, vm_cpu, vm_ram, vm_disk, vm_imagepath, PM_ADDRS[alloted_pm_id]]
     return out
 
 @app.route("/vm/types", methods=['GET'])
@@ -119,12 +121,23 @@ def Scheduler(cpu, ram, disk):
     alloted = 0
     while not alloted:
         pm_id = random.choice(list(PM_ADDRS.keys()))
-        os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" free -k | grep 'Mem:' | awk '{ print $4 }' >> temp/pm_data")
-        os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" grep processor /proc/cpuinfo | wc -l >> temp/pm_data")
+        os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" uname >> temp/os_type")
+
+        with open('temp/os_type') as f:
+            os_type = f.readline().strip()
+            #----- Mac OS --------#
+            if os_type == 'Darwin':
+                os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" sysctl hw.memsize | awk '{ print $2 }' >> temp/pm_data")
+                os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" sysctl hw.ncpu | awk '{ print $2 }' >> temp/pm_data")
+            #----- GNU/Linux -----#    
+            else:
+                os.system(" ssh " + PM_list[pms] +" free -k | grep 'Mem:' | awk '{ print $4 }' >> data")
+                os.system(" ssh " + PM_list[pms] +" grep processor /proc/cpuinfo | wc -l >> data")
 
         with open('temp/pm_data') as f:
             pm_ram = f.readline().strip()
             pm_cpu = f.readline().strip()
+            print "RAM : %s, CPU : %s" % (pm_ram, pm_cpu)
             os.system("rm -rf temp/*")
             if int(pm_cpu) >= int(cpu):
                 if int(pm_ram) >= int(ram):
@@ -132,6 +145,17 @@ def Scheduler(cpu, ram, disk):
                     alloted_pm_id = pm_id
 
     return alloted_pm_id
+
+def TransferImage(pm_id, image_path):
+    """
+    Copies the Image file to the client machine if host and client are not same.
+    """
+    # --- Client and Host are same --- #
+    if PM_ADDRS[pm_id]['ip'] == image_path.split(':')[0]:
+        return
+
+    os.system('scp '+image_path+' '+PM_ADDRS[pm_id]['ip']+'~/')
+    return
 
 def GetVMTypeDetails(typeid=None):
     """
