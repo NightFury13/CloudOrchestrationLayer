@@ -82,8 +82,10 @@ def VMCreate():
         if vm_id == vm_imageid:
             vm_imagepath = VM_IMAGES[vm_id]['path']
 
-    st = [vm_name, vm_typeid, vm_imageid, vm_cpu, vm_ram, vm_disk, vm_imagepath]
-    return st
+    alloted_pm_id = Scheduler(vm_cpu, vm_ram, vm_disk)
+
+    out = [vm_name, vm_typeid, vm_imageid, vm_cpu, vm_ram, vm_disk, vm_imagepath, alloted_pm_id]
+    return out
 
 @app.route("/vm/types", methods=['GET'])
 def VMTypes():
@@ -109,6 +111,27 @@ def ListImages():
 ######################################################################################################
 # Virtual Machine CRUD-helper functions.
 ######################################################################################################
+
+def Scheduler(cpu, ram, disk):
+    """
+    Returns a physical machine ID based on the cpu, ram and disk space required.
+    """
+    alloted = 0
+    while not alloted:
+        pm_id = random.choice(list(PM_ADDRS.keys()))
+        os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" free -k | grep 'Mem:' | awk '{ print $4 }' >> temp/pm_data")
+        os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" grep processor /proc/cpuinfo | wc -l >> temp/pm_data")
+
+        with open('temp/pm_data') as f:
+            pm_ram = f.readline().strip()
+            pm_cpu = f.readline().strip()
+            os.system("rm -rf temp/*")
+            if int(pm_cpu) >= int(cpu):
+                if int(pm_ram) >= int(ram):
+                    alloted = 1
+                    alloted_pm_id = pm_id
+
+    return alloted_pm_id
 
 def GetVMTypeDetails(typeid=None):
     """
@@ -210,6 +233,11 @@ if __name__ == "__main__":
             print "Images loaded successfully!\n"
         else:
             print "Failed to load Images.\n"
+
+        # ------- Creating temp folder -------- #
+        if not os.path.isdir("temp"):
+            os.mkdir("temp")
+            print "Creating 'temp' folder for server manipulations...\n"
 
         # ------- Start the Flask Server -------- #
         if status_fl == 0:
