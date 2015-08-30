@@ -1,1 +1,0 @@
-MONGO_DBNAME='CloudOrchestrationLayerDB'
