@@ -25,7 +25,7 @@ from ConfigFiles import *
 ######################################################################################################
 
 VM_IMAGES = {} # Stores all the VM images given as input.
-PM_ADDRS = []  # Stores the IPs of all available Physical Machines
+PM_ADDRS = {}  # Stores the IPs of all available Physical Machines
 
 ######################################################################################################
 # Flask Application Initializer.
@@ -48,11 +48,12 @@ def homepage():
                 {
                     "List VM Types" : "http://localhost:5000/vm/types",
                     "List Physical Machines" : "http://localhost:5000/pm/list",
-                    "Create VM" : "http://localhost:5000/vm/create?name=<vm-name>&instance_type=<type-id>&image_id=<image-id>"
+                    "Create VM" : "http://localhost:5000/vm/create?name=<vm-name>&instance_type=<type-id>&image_id=<image-id>",
+                    "List Images" : "http://localhost:5000/image/list"
                 }
         }
     ]
-    return homeString #Dont jsonify, already in json format.
+    return homeString
 
 ######################################################################################################
 # Virtual Machine CRUD functions.
@@ -67,7 +68,7 @@ def VMCreate():
     try: 
         vm_name = str(config_vars['name'])
         vm_typeid = int(config_vars['instance_type'])
-        vm_imageid = int(config_vars['image_id'])
+        vm_imageid = str(config_vars['image_id'])
     except:
         raise werkzeug.exceptions.BadRequest('[ERROR] : Check the parameters sent. Name/InstanceId/ImageID not found.')
 
@@ -77,7 +78,11 @@ def VMCreate():
     vm_ram = vm_type_details['ram']
     vm_disk = vm_type_details['disk']
 
-    st = [vm_name, vm_typeid, vm_imageid, vm_cpu, vm_ram, vm_disk]
+    for vm_id in VM_IMAGES:
+        if vm_id == vm_imageid:
+            vm_imagepath = VM_IMAGES[vm_id]['path']
+
+    st = [vm_name, vm_typeid, vm_imageid, vm_cpu, vm_ram, vm_disk, vm_imagepath]
     return st
 
 @app.route("/vm/types", methods=['GET'])
@@ -85,7 +90,7 @@ def VMTypes():
     """
     Returns the types of VMs available.
     """
-    return vm_types #Dont jsonify, already in json format.
+    return vm_types
 
 @app.route("/pm/list", methods=['GET'])
 def ListPM():
@@ -93,6 +98,13 @@ def ListPM():
     Returns all available Physical Machines.
     """
     return PM_ADDRS
+
+@app.route("/image/list", methods=['GET'])
+def ListImages():
+    """
+    Returns all available OS Images with their respective IDs.
+    """
+    return VM_IMAGES
 
 ######################################################################################################
 # Virtual Machine CRUD-helper functions.
@@ -138,7 +150,7 @@ def LoadImagesFromFile(filename=None):
 
 def GetPhysicalMachines(filename=None):
     """
-    Stores the list of Physical Machines from pm_file to the Global List : PM_ADDRS
+    Stores the list of Physical Machines from pm_file to the Global Dictionary : PM_ADDRS
     """
     if not os.path.isfile(filename):
         print "[ERROR] File does not exist : %s " % filename
@@ -148,7 +160,7 @@ def GetPhysicalMachines(filename=None):
     with open(filename, 'r') as f:
         for line in f.readlines():
             try:
-                PM_ADDRS.append(line.strip())
+                PM_ADDRS[CreateUID()] = {'ip': (line.strip())}
                 print "[SUCCESS] : storing machine %s" % line.strip()
             except:
                 print "[FAILED] : storing machine %s" % line.strip()
@@ -161,7 +173,7 @@ def GetPhysicalMachines(filename=None):
 # Initializer-Helper functions.
 ######################################################################################################
 
-def CreateUID(size=6, chars=string.ascii_uppercase + string.digits):
+def CreateUID(size=7, chars=string.ascii_uppercase + string.digits):
     """
     Creates a string unique_id of length 'size' and type 'chars'.
     """
