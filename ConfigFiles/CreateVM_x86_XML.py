@@ -1,7 +1,6 @@
 x86_XML_doc="""
 <domain type='qemu' id='%s'>
   <name>%s</name>
-  <uuid>%s</uuid>
   <memory>%s</memory>
   <currentMemory>%s</currentMemory>
   <vcpu>%s</vcpu>

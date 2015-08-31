@@ -1,7 +1,6 @@
 x64_XML_doc="""
 <domain type='kvm' id='%s'>
   <name>%s</name>
-  <uuid>%s</uuid>
   <memory unit='KiB'>%s</memory>
   <currentMemory unit='KiB'>%s</currentMemory>
   <vcpu placement='static'>%s</vcpu>

@@ -10,7 +10,6 @@ RollNo : 201202164
 ######################################################################################################
 from flask import request, jsonify
 from flask.ext.api import FlaskAPI
-from flask.ext.pymongo import PyMongo
 import subprocess
 import random
 import string
@@ -84,10 +83,11 @@ def VMCreate():
         if vm_id == vm_imageid:
             vm_imagepath = VM_IMAGES[vm_id]['path']
 
-    vm_filename = str(vm_imagepath.split('/')[-1])
-
     # Allocate the Physical Machine to load this VM.
     alloted_pm_id = Scheduler(vm_cpu, vm_ram, vm_disk)
+    
+    client_username = PM_ADDRS[alloted_pm_id]['ip'].split('@')[0].strip()
+    vm_filename = str(vm_imagepath.split('/')[-1])
 
     # Send image to client machine.
     TransferImage(alloted_pm_id, vm_imagepath, vm_filename)
@@ -109,7 +109,7 @@ def VMCreate():
 
     # --- Load VM on Client --- #
     connection = libvirt.open("qemu+ssh://"+PM_ADDRS[alloted_pm_id]['ip']+"/system")
-    XML_doc = string % (vm_id, vm_name, vm_id, str(int(vm_ram)*1024), str(int(vm_ram)*1024), str(vm_cpu), '~/'+vm_filename)
+    XML_doc = string % (vm_id, vm_name, str(int(vm_ram)*1024), str(int(vm_ram)*1024), str(vm_cpu), '/home/'+client_username+'/'+vm_filename)
 
     try:
         connection.createXML(XML_doc, 0)
@@ -162,8 +162,8 @@ def Scheduler(cpu, ram, disk):
                 os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" sysctl hw.ncpu | awk '{ print $2 }' >> temp/pm_data")
             #----- GNU/Linux -----#    
             else:
-                os.system(" ssh " + PM_list[pms] +" free -k | grep 'Mem:' | awk '{ print $4 }' >> data")
-                os.system(" ssh " + PM_list[pms] +" grep processor /proc/cpuinfo | wc -l >> data")
+                os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" free -k | grep 'Mem:' | awk '{ print $4 }' >> temp/pm_data")
+                os.system(" ssh " + PM_ADDRS[pm_id]['ip'] +" grep processor /proc/cpuinfo | wc -l >> temp/pm_data")
 
         with open('temp/pm_data') as f:
             pm_ram = f.readline().strip()
@@ -181,11 +181,14 @@ def TransferImage(pm_id, image_path, vm_filename):
     """
     Copies the Image file to the client machine if host and client are not same.
     """
+    client_username = PM_ADDRS[pm_id]['ip'].split('@')[0].strip()
+    
     # --- Client and Host are same --- #
-    if PM_ADDRS[pm_id]['ip'] == image_path.split(':')[0]:
-        return
+    if PM_ADDRS[pm_id]['ip'].strip() == image_path.split(':')[0].strip():
+        os.system('cp '+image_path.split(':')[1].strip()+' /home/'+client_username+'/'+vm_filename)
+	return
 
-    os.system('scp '+image_path+' '+PM_ADDRS[pm_id]['ip']+'~/'+vm_filename)
+    os.system('scp '+image_path+' '+PM_ADDRS[pm_id]['ip']+'/home/'+client_username+'/'+vm_filename)
     return
 
 def GetVMTypeDetails(typeid=None):
